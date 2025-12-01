@@ -74,15 +74,15 @@ On startup the scripts:
 ### Lite/Core Edition
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/necvilen/necvilen/main/liteedition.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/liteedition.sh | sudo bash
 ```
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/necvilen/necvilen/main/rededition.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/rededition.sh | sudo bash
 ```
 
 ```bash
-git clone https://github.com/necvilen/necvilen.git
+git clone https://github.com/necvilen/hacking-tools.git
 cd necvilen
 
 chmod +x liteedition.sh
