@@ -335,57 +335,34 @@ install_burp() {
 install_metasploit() {
     echo -e "${BLUE}[*] Installing Metasploit Framework...${RESET}"
 
-    # اگر قبلاً نصب شده، بی‌خودی دوباره نصب نکن
+    # Already installed?
     if command -v msfconsole >/dev/null 2>&1; then
         echo -e "${GREEN}[✓] Metasploit already installed.${RESET}"
         return 0
     fi
 
-    # فولدر موقت بساز
-    tmpdir="$(mktemp -d /tmp/msfinstall-XXXXXX)" || {
-        echo -e "${RED}[!] Failed to create temp directory for Metasploit installer.${RESET}"
-        return 1
-    }
-
-    cd "$tmpdir" || {
-        echo -e "${RED}[!] Cannot cd to ${tmpdir}.${RESET}"
-        return 1
-    }
-
-    echo -e "${CYAN}[*] Downloading official Metasploit installer (msfinstall)...${RESET}"
-    if ! curl -fsSL \
-        "https://raw.githubusercontent.com/rapid7/metasploit-omnibus/master/config/templates/metasploit-framework-wrappers/msfupdate.erb" \
-        -o msfinstall; then
-        echo -e "${RED}[!] Failed to download Metasploit installer script (msfinstall).${RESET}"
-        cd / || true
-        rm -rf "$tmpdir"
+    # snap available?
+    if ! command -v snap >/dev/null 2>&1; then
+        echo -e "${RED}[!] snap command not found. Cannot install metasploit-framework via snap.${RESET}"
+        echo -e "${YELLOW}[i] Install snapd manually or install Metasploit from your distro repos.${RESET}"
         return 1
     fi
 
-    chmod 755 msfinstall
-
-    echo -e "${YELLOW}[!] Running official Metasploit installer script...${RESET}"
-    if ! ./msfinstall; then
-        echo -e "${RED}[!] Metasploit installer failed.${RESET}"
-        cd / || true
-        rm -rf "$tmpdir"
-        return 1
+    # metasploit snap already installed?
+    if snap list metasploit-framework >/dev/null 2>&1; then
+        echo -e "${GREEN}[✓] metasploit-framework snap already installed.${RESET}"
+        return 0
     fi
 
-    cd / || true
-    rm -rf "$tmpdir"
-
-    echo -e "${GREEN}[✓] Metasploit Framework installation finished (check with: msfconsole).${RESET}"
-}
-
-install_all() {
-    banner
-    prepare_system
-    install_apt_tools
-    install_git_tools
-    install_burp
-    install_metasploit
-    echo -e "${GREEN}[✓] RED Edition core + heavy frameworks installed (where possible).${RESET}"
+    echo -e "${CYAN}[*] Installing metasploit-framework via snap...${RESET}"
+    if snap install metasploit-framework; then
+        echo -e "${GREEN}[✓] metasploit-framework installed via snap. You can run: msfconsole${RESET}"
+        return 0
+    else
+        echo -e "${RED}[!] Failed to install metasploit-framework via snap.${RESET}"
+        echo -e "${YELLOW}[i] You may need to install it manually from official docs.${RESET}"
+        return 1
+    fi
 }
 
 update_all() {
