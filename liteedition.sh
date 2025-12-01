@@ -316,22 +316,34 @@ install_burp() {
 install_metasploit() {
     echo -e "${BLUE}[*] Installing Metasploit Framework...${RESET}"
 
+    # Already installed?
     if command -v msfconsole >/dev/null 2>&1; then
         echo -e "${GREEN}[✓] Metasploit already installed.${RESET}"
         return 0
     fi
 
-    tmpfile="$(mktemp /tmp/msfinstall-XXXXXX)"
-    if ! curl -sSf https://raw.githubusercontent.com/rapid7/metasploit-framework/master/msfinstall -o "$tmpfile"; then
-        echo -e "${RED}[!] Failed to download Metasploit installer script.${RESET}"
-        rm -f "$tmpfile"
+    # snap available?
+    if ! command -v snap >/dev/null 2>&1; then
+        echo -e "${RED}[!] snap command not found. Cannot install metasploit-framework via snap.${RESET}"
+        echo -e "${YELLOW}[i] Install snapd manually or install Metasploit from your distro repos.${RESET}"
         return 1
     fi
 
-    chmod +x "$tmpfile"
-    echo -e "${YELLOW}[!] Running official Metasploit installer script...${RESET}"
-    bash "$tmpfile"
-    rm -f "$tmpfile"
+    # metasploit snap already installed?
+    if snap list metasploit-framework >/dev/null 2>&1; then
+        echo -e "${GREEN}[✓] metasploit-framework snap already installed.${RESET}"
+        return 0
+    fi
+
+    echo -e "${CYAN}[*] Installing metasploit-framework via snap...${RESET}"
+    if snap install metasploit-framework; then
+        echo -e "${GREEN}[✓] metasploit-framework installed via snap. You can run: msfconsole${RESET}"
+        return 0
+    else
+        echo -e "${RED}[!] Failed to install metasploit-framework via snap.${RESET}"
+        echo -e "${YELLOW}[i] You may need to install it manually from official docs.${RESET}"
+        return 1
+    fi
 }
 
 install_all() {
