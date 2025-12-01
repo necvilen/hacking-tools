@@ -1,0 +1,434 @@
+#!/usr/bin/env bash
+
+RED EDITION
+
+set -euo pipefail
+
+# =========================================================
+#   ULTIMATE DEBIAN OFFENSIVE INSTALLER - RED EDITION
+# =========================================================
+#   For legal penetration testing, Red Team & research ONLY
+#   Debian / Ubuntu / Zorin based systems
+#   Heavy Git-based frameworks, C2 & tooling included.
+#   Many of them require manual setup after cloning.
+# =========================================================
+
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+CYAN="\e[36m"
+RESET="\e[0m"
+
+BURP_URL="https://portswigger.net/burp/releases/download?product=community&type=Linux"
+TOOLS_DIR="${HOME}/offensive-tools-red"
+
+# =============================
+#  BANNER
+# =============================
+banner() {
+    echo -e "${RED}"
+    echo "========================================================="
+    echo "          ULTIMATE DEBIAN OFFENSIVE - RED EDITION"
+    echo "========================================================="
+    echo -e "${RESET}"
+}
+
+# =============================
+#  SAFETY / ENV CHECKS
+# =============================
+
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}[!] This script must be run as root (e.g. sudo $0).${RESET}"
+        exit 1
+    fi
+}
+
+check_distro() {
+    if [[ ! -r /etc/os-release ]]; then
+        echo -e "${RED}[!] Cannot detect distribution (missing /etc/os-release).${RESET}"
+        exit 1
+    fi
+
+    # shellcheck disable=SC1091
+    . /etc/os-release
+
+    case "${ID:-unknown}" in
+        debian|ubuntu|zorin|kali)
+            ;;
+        *)
+            echo -e "${RED}[!] Unsupported distro: ${ID:-unknown}"
+            echo -e "    This script is intended for Debian/Ubuntu/Zorin-like systems.${RESET}"
+            exit 1
+            ;;
+    esac
+}
+
+trap 'echo -e "\n${RED}[!] Interrupted. Exiting...${RESET}"; exit 1' INT
+
+# =============================
+#  APT TOOL PACK  (SAME CLEAN CORE AS LITE)
+# =============================
+APT_TOOLS=(
+    # Network / Web / Recon
+    nmap
+    sqlmap
+    hydra
+    john
+    hashcat
+    gobuster
+    ffuf
+    nikto
+    tcpdump
+    netcat-openbsd
+    whois
+    dnsutils
+    curl
+    wget
+    git
+
+    # Languages / runtimes
+    python3
+    python3-pip
+    ruby
+    ruby-full
+
+    # Build toolchain
+    build-essential
+    gcc
+    make
+    cmake
+
+    # Wireless / sniffing (APT-only basics)
+    aircrack-ng
+    reaver
+    bully
+    wifite
+    wireshark
+    tshark
+
+    # File / stego / metadata
+    binwalk
+    steghide
+    stegsnow
+    exiftool
+
+    # VPN / anonymity
+    openvpn
+    tor
+    proxychains4
+    macchanger
+
+    # Network scanning / mapping
+    arp-scan
+    zmap
+    masscan
+
+    # Security auditing / hardening
+    yara
+    clamav
+    iptables
+    ipset
+    lynis
+    rkhunter
+
+    # Dev libs
+    libssl-dev
+    libffi-dev
+    libpcap-dev
+
+    # Shell & wordlists
+    zsh
+    seclists
+
+    # QoL / System utils
+    tmux
+    vim
+    neovim
+    tree
+    p7zip-full
+    unrar
+    zip
+    unzip
+    mlocate
+    ripgrep
+    xclip
+    htop
+
+    # Languages / Dev env extra
+    golang-go
+    default-jdk
+    nodejs
+    npm
+    pipx
+
+    # Exploit Dev / RE (basic)
+    gdb
+    gdb-multiarch
+    strace
+    ltrace
+    binutils
+    gdbserver
+
+    # Forensics (light)
+    sleuthkit
+    foremost
+    scalpel
+    testdisk
+)
+
+# =============================
+#  GIT TOOL PACK (RED EDITION – HEAVY)
+# =============================
+GIT_TOOLS=(
+    # --- RECON / DISCOVERY / WEB ---
+    "https://github.com/ProjectDiscovery/subfinder.git"
+    "https://github.com/ProjectDiscovery/httpx.git"
+    "https://github.com/ProjectDiscovery/naabu.git"
+    "https://github.com/ProjectDiscovery/katana.git"
+    "https://github.com/ProjectDiscovery/nuclei.git"
+    "https://github.com/projectdiscovery/nuclei-templates.git"
+    "https://github.com/OWASP/Amass.git"
+    "https://github.com/swisskyrepo/PayloadsAllTheThings.git"
+    "https://github.com/s0md3v/XSStrike.git"
+    "https://github.com/devanshbatham/ParamSpider.git"
+    "https://github.com/maurosoria/dirsearch.git"
+    "https://github.com/EnableSecurity/wafw00f.git"
+    "https://github.com/laramies/theHarvester.git"
+
+    # --- PRIVESC / ENUMERATION ---
+    "https://github.com/carlospolop/PEASS-ng.git"
+    "https://github.com/rebootuser/LinEnum.git"
+
+    # --- WINDOWS / AD / INTERNAL ---
+    "https://github.com/SecureAuthCorp/impacket.git"
+    "https://github.com/PowerShellMafia/PowerSploit.git"
+    "https://github.com/BC-SECURITY/Empire.git"
+    "https://github.com/BloodHoundAD/BloodHound.git"
+    "https://github.com/Porchetta-Industries/CrackMapExec.git"
+    "https://github.com/lgandx/Responder.git"
+    "https://github.com/dirkjanm/mitm6.git"
+    "https://github.com/BishopFox/sliver.git"
+    "https://github.com/mitre/caldera.git"
+
+    # --- EXPLOIT DEV / RE HELPERS ---
+    "https://github.com/Gallopsled/pwntools.git"
+    "https://github.com/longld/peda.git"
+
+    # --- CLOUD / CONTAINERS / K8S ---
+    "https://github.com/aquasecurity/trivy.git"
+    "https://github.com/aquasecurity/kube-hunter.git"
+    "https://github.com/aquasecurity/kube-bench.git"
+
+    # --- WIRELESS / MITM (ADVANCED) ---
+    "https://github.com/v1s1t0r1sh3r3/airgeddon.git"
+    "https://github.com/ZerBea/hcxdumptool.git"
+    "https://github.com/ZerBea/hcxtools.git"
+    "https://github.com/bettercap/bettercap.git"
+
+    # --- SOCIAL ENGINEERING / TOOLKITS ---
+    "https://github.com/trustedsec/social-engineer-toolkit.git"
+
+    # --- UTILITIES / EXTRA STUFF ---
+    "https://github.com/swisskyrepo/Wordpresscan.git"
+    "https://github.com/swisskyrepo/SSRFmap.git"
+)
+
+# =============================
+#  CORE FUNCTIONS
+# =============================
+
+prepare_system() {
+    echo -e "${YELLOW}[+] Updating system...${RESET}"
+    apt update -y && apt upgrade -y
+
+    echo -e "${YELLOW}[+] Installing base dependencies...${RESET}"
+    apt install -y \
+        software-properties-common \
+        ca-certificates \
+        curl \
+        wget \
+        git \
+        python3 \
+        python3-pip \
+        build-essential
+}
+
+install_apt_tools() {
+    echo -e "${BLUE}[*] Installing APT tools (core baseline)...${RESET}"
+    for pkg in "${APT_TOOLS[@]}"; do
+        if dpkg -l | awk '{print $2}' | grep -qx "$pkg"; then
+            echo -e "${GREEN}[✓] ${pkg} already installed.${RESET}"
+        else
+            echo -e "${CYAN}[*] Installing ${pkg}...${RESET}"
+            if ! apt install -y "$pkg"; then
+                echo -e "${RED}[!] Failed to install ${pkg}. Skipping.${RESET}"
+            fi
+        fi
+    done
+}
+
+install_git_tools() {
+    echo -e "${BLUE}[*] Cloning RED Git tools (heavy frameworks)...${RESET}"
+
+    mkdir -p "${TOOLS_DIR}"
+    cd "${TOOLS_DIR}" || {
+        echo -e "${RED}[!] Cannot cd to ${TOOLS_DIR}.${RESET}"
+        exit 1
+    }
+
+    for repo in "${GIT_TOOLS[@]}"; do
+        name="$(basename "$repo" .git)"
+        if [[ -d "$name/.git" ]]; then
+            echo -e "${GREEN}[✓] ${name} already cloned.${RESET}"
+        else
+            echo -e "${CYAN}[*] Cloning ${name}...${RESET}"
+            if ! git clone --depth 1 "$repo" "$name"; then
+                echo -e "${RED}[!] Failed to clone ${repo}. Skipping.${RESET}"
+            fi
+        fi
+    done
+
+    echo -e "${YELLOW}[!] NOTE (RED EDITION):${RESET}"
+    echo -e "${YELLOW}    Most of these tools are frameworks or large projects (Empire, Sliver, Caldera, SET, BloodHound,${RESET}"
+    echo -e "${YELLOW}    CrackMapExec, Responder, trivy, kube-hunter, kube-bench, bettercap, pwntools, impacket, etc.).${RESET}"
+    echo -e "${YELLOW}    They are ONLY cloned here. You must install their Python deps, databases, or services manually.${RESET}"
+    echo -e "${YELLOW}    Read each project's README before using it.${RESET}"
+}
+
+install_burp() {
+    echo -e "${BLUE}[*] Installing Burp Suite Community...${RESET}"
+
+    tmpfile="$(mktemp /tmp/burp-XXXXXX.sh)"
+    if ! wget -qO "$tmpfile" "$BURP_URL"; then
+        echo -e "${RED}[!] Failed to download Burp from ${BURP_URL}.${RESET}"
+        rm -f "$tmpfile"
+        return 1
+    fi
+
+    chmod +x "$tmpfile"
+    echo -e "${YELLOW}[!] Burp installer downloaded to ${tmpfile}.${RESET}"
+    echo -e "${YELLOW}    It will now be executed. Review if needed.${RESET}"
+
+    bash "$tmpfile"
+    rm -f "$tmpfile"
+}
+
+install_metasploit() {
+    echo -e "${BLUE}[*] Installing Metasploit Framework...${RESET}"
+
+    # اگر قبلاً نصب شده، بی‌خودی دوباره نصب نکن
+    if command -v msfconsole >/dev/null 2>&1; then
+        echo -e "${GREEN}[✓] Metasploit already installed.${RESET}"
+        return 0
+    fi
+
+    # فولدر موقت بساز
+    tmpdir="$(mktemp -d /tmp/msfinstall-XXXXXX)" || {
+        echo -e "${RED}[!] Failed to create temp directory for Metasploit installer.${RESET}"
+        return 1
+    }
+
+    cd "$tmpdir" || {
+        echo -e "${RED}[!] Cannot cd to ${tmpdir}.${RESET}"
+        return 1
+    }
+
+    echo -e "${CYAN}[*] Downloading official Metasploit installer (msfinstall)...${RESET}"
+    if ! curl -fsSL \
+        "https://raw.githubusercontent.com/rapid7/metasploit-omnibus/master/config/templates/metasploit-framework-wrappers/msfupdate.erb" \
+        -o msfinstall; then
+        echo -e "${RED}[!] Failed to download Metasploit installer script (msfinstall).${RESET}"
+        cd / || true
+        rm -rf "$tmpdir"
+        return 1
+    fi
+
+    chmod 755 msfinstall
+
+    echo -e "${YELLOW}[!] Running official Metasploit installer script...${RESET}"
+    if ! ./msfinstall; then
+        echo -e "${RED}[!] Metasploit installer failed.${RESET}"
+        cd / || true
+        rm -rf "$tmpdir"
+        return 1
+    fi
+
+    cd / || true
+    rm -rf "$tmpdir"
+
+    echo -e "${GREEN}[✓] Metasploit Framework installation finished (check with: msfconsole).${RESET}"
+}
+
+install_all() {
+    banner
+    prepare_system
+    install_apt_tools
+    install_git_tools
+    install_burp
+    install_metasploit
+    echo -e "${GREEN}[✓] RED Edition core + heavy frameworks installed (where possible).${RESET}"
+}
+
+update_all() {
+    banner
+    echo -e "${YELLOW}[+] Updating system packages...${RESET}"
+    apt update -y && apt upgrade -y
+
+    echo -e "${YELLOW}[+] Checking APT tools...${RESET}"
+    for pkg in "${APT_TOOLS[@]}"; do
+        if dpkg -l | awk '{print $2}' | grep -qx "$pkg"; then
+            echo -e "${GREEN}[✓] ${pkg} OK.${RESET}"
+        else
+            echo -e "${CYAN}[*] Installing missing: ${pkg}${RESET}"
+            apt install -y "$pkg" || echo -e "${RED}[!] Failed to install ${pkg}.${RESET}"
+        fi
+    done
+
+    echo -e "${BLUE}[*] Updating Git tools...${RESET}"
+    if [[ -d "${TOOLS_DIR}" ]]; then
+        cd "${TOOLS_DIR}" || exit 1
+        for dir in */; do
+            [[ -d "$dir/.git" ]] || continue
+            echo -e "${CYAN}[*] Updating ${dir%/}...${RESET}"
+            (
+                cd "$dir" || exit 0
+                git pull --ff-only || echo -e "${RED}[!] git pull failed for ${dir%/}.${RESET}"
+            )
+        done
+    else
+        echo -e "${YELLOW}[!] ${TOOLS_DIR} does not exist. Nothing to update.${RESET}"
+    fi
+
+    echo -e "${GREEN}[✓] Update complete.${RESET}"
+}
+
+# =============================
+#  MENU
+# =============================
+menu() {
+    banner
+    echo -e "${CYAN}1.${RESET} Install RED Edition (core + heavy Git frameworks)"
+    echo -e "${CYAN}2.${RESET} Check / install missing APT tools & update Git repos"
+    echo "------------------------"
+    echo -e "${CYAN}q.${RESET} Exit"
+}
+
+main() {
+    require_root
+    check_distro
+
+    while true; do
+        menu
+        read -rp "Select: " choice
+        case "$choice" in
+            1) install_all ;;
+            2) update_all ;;
+            q|Q) echo "Bye."; exit 0 ;;
+            *) echo -e "${RED}[!] Invalid option.${RESET}" ;;
+        esac
+    done
+}
+
+main "$@"
