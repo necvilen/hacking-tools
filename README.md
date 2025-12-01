@@ -74,12 +74,12 @@ On startup the scripts:
 ### Lite/Core Edition
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/liteedition.sh | sudo bash
+sudo bash <(curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/liteedition.sh)
 ```
 
 ### RED/Core Edition
 ```bash
-curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/rededition.sh | sudo bash
+sudo bash <(curl -sSL https://raw.githubusercontent.com/necvilen/hacking-tools/main/rededition.sh)
 ```
 
 ### Manual Installation (clone)
